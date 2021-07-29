@@ -510,19 +510,19 @@ loader.reg("user-intro-ins", "主页指令", (conf) => {
             arg = arg.split(/(?<!!)%/g).map((s) => s.replace(/!%/g, "%"));
             const $blog = $($(".user-action").children()[0]);
             switch (ins) {
-                case "html":
-                    $e.replaceWith($(`<p>${xss.process(arg[0])}</p>`));
-                    break;
-                case "frame":
-                    $e.replaceWith($(`<iframe src="https://www.bilibili.com/robots.txt?url=${encodeURI(arg[0])}"`
+            case "html":
+                $e.replaceWith($(`<p>${xss.process(arg[0])}</p>`));
+                break;
+            case "frame":
+                $e.replaceWith($(`<iframe src="https://www.bilibili.com/robots.txt?url=${encodeURI(arg[0])}"`
                         + `style="width: ${arg[1]}; height: ${arg[2]};"></iframe>`
-                    ));
-                    break;
-                case "blog":
-                    if ($blog.text().trim() !== "个人博客") return;
-                    $blog.attr("href", arg);
-                    $e.remove();
-                    break;
+                ));
+                break;
+            case "blog":
+                if ($blog.text().trim() !== "个人博客") return;
+                $blog.attr("href", arg);
+                $e.remove();
+                break;
             }
         });
     });
@@ -1141,19 +1141,19 @@ loader.reg("keyboard-and-cli", "键盘操作与命令行", (conf) => {
                 /* for <action> "enable|disable|toggle", opearte the mod named <name>. for <action> "save", save modification. */
                 /* 当 <action> 为 "enable|disable|toggle"，对名为 <name> 的模块执行对应操作：启用|禁用|切换。当 <action> 为 "save"，保存修改。 */
                 switch (action) {
-                    case "enable":
-                    case "disable":
-                    case "toggle":
-                        if (loader.switch[name] === undefined) return cli_error`mod: unknown mod "${name}"`;
-                        let now = loader.switch[name];
-                        now = { enable: true, disale: false, toggle: !now }[action];
-                        loader.switch[name] = now;
-                        break;
-                    case "save":
-                        storage.mod_map = loader.switch;
-                        break;
-                    default:
-                        return cli_error`mod: unknown action "${action}"`;
+                case "enable":
+                case "disable":
+                case "toggle":
+                    if (loader.switch[name] === undefined) return cli_error`mod: unknown mod "${name}"`;
+                    let now = loader.switch[name];
+                    now = { enable: true, disale: false, toggle: !now }[action];
+                    loader.switch[name] = now;
+                    break;
+                case "save":
+                    storage.mod_map = loader.switch;
+                    break;
+                default:
+                    return cli_error`mod: unknown action "${action}"`;
                 }
             },
             dash: (action/*!string*/) => {
@@ -1221,27 +1221,27 @@ loader.reg("keyboard-and-cli", "键盘操作与命令行", (conf) => {
 
         $cli_input.on("keydown", (e) => {
             switch (e.key) {
-                case "Enter":
-                    if (cli_is_log) return cli_clean();
-                    const cmd = $cli_input.val();
-                    cli_history.push(cmd);
-                    cli_history_index = cli_history.length;
-                    parse(cmd);
-                    if (!cli_is_log) return cli_clean();
-                    break;
-                case "/":
-                    if (cli_is_log) cli_clean();
-                    break;
-                case "Escape":
-                    $cli.hide();
-                    break;
-                case "ArrowUp":
-                case "ArrowDown":
-                    const i = cli_history_index + { ArrowUp: -1, ArrowDown: +1 }[e.key];
-                    if (i < 0 || i >= cli_history.length) return;
-                    cli_history_index = i;
-                    $cli_input.val(cli_history[i]);
-                    break;
+            case "Enter":
+                if (cli_is_log) return cli_clean();
+                const cmd = $cli_input.val();
+                cli_history.push(cmd);
+                cli_history_index = cli_history.length;
+                parse(cmd);
+                if (!cli_is_log) return cli_clean();
+                break;
+            case "/":
+                if (cli_is_log) cli_clean();
+                break;
+            case "Escape":
+                $cli.hide();
+                break;
+            case "ArrowUp":
+            case "ArrowDown":
+                const i = cli_history_index + { ArrowUp: -1, ArrowDown: +1 }[e.key];
+                if (i < 0 || i >= cli_history.length) return;
+                cli_history_index = i;
+                $cli_input.val(cli_history[i]);
+                break;
             }
         });
 
@@ -2391,7 +2391,7 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
 
                 if (tag === "无") {
                     res = await queryAll();
-                    res = res.filter((u) => !u.tag.length);
+                    res = res.filter((u) => !u.tag.length || u.tag.includes("无"));
                 }
 
                 let p = `${tag}&nbsp;&nbsp;<a href="/?notepad&tag=${tag}&edit" target="_blank"><svg data-v-29a65e17="" data-v-303bbf52="" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="edit" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" class="svg-inline--fa fa-edit fa-w-18"><path data-v-29a65e17="" data-v-303bbf52="" fill="currentColor" d="M402.6 83.2l90.2 90.2c3.8 3.8 3.8 10 0 13.8L274.4 405.6l-92.8 10.3c-12.4 1.4-22.9-9.1-21.5-21.5l10.3-92.8L388.8 83.2c3.8-3.8 10-3.8 13.8 0zm162-22.9l-48.8-48.8c-15.2-15.2-39.9-15.2-55.2 0l-35.4 35.4c-3.8 3.8-3.8 10 0 13.8l90.2 90.2c3.8 3.8 10 3.8 13.8 0l35.4-35.4c15.2-15.3 15.2-40 0-55.2zM384 346.2V448H64V128h229.8c3.2 0 6.2-1.3 8.5-3.5l40-40c7.6-7.6 2.2-20.5-8.5-20.5H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48V306.2c0-10.7-12.9-16-20.5-8.5l-40 40c-2.2 2.3-3.5 5.3-3.5 8.5z" class=""></path></svg></a><hr/>`;

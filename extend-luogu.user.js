@@ -33,6 +33,8 @@
 // ==Utilities==
 
 const update_log = `
+## 6.4.4
+1. Notepad新功能, 允许其他OJ的题目, UI未完成, 等minstdfx来/kel
 ## 6.4.3
 1. 修复数据问题
 2. 修复提交记录颜色显示
@@ -2017,7 +2019,7 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
     conf.match("www.luogu.com.cn/.*");
     conf.setAlive(() => $("#notepad-main-entry").length);
     const DBName = "Luogu Notepad",
-        DBVer = 4;
+        DBVer = 6;
     // save config
     const saveConfig = (config) => {
         $.ajax({
@@ -2102,6 +2104,9 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                     if (!db.objectStoreNames.contains("qnotes")) {
                         db.createObjectStore("qnotes", { keyPath: "id" });
                     }
+                    if (!db.objectStoreNames.contains("ojinfo")) {
+                        db.createObjectStore("ojinfo", { keyPath: "id" });
+                    }
                     if (o)
                         importData(o, db);
                 };
@@ -2153,6 +2158,29 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                 };
             });
         }
+        function queryOJ(pt) {
+            return new Promise((resolve, reject) => {
+                const req = db
+                    .transaction("ojinfo", "readonly")
+                    .objectStore("ojinfo")
+                    .get(pt);
+                req.onsuccess = (event) => {
+                    resolve(req.result);
+                };
+            });
+        }
+        function queryAllOJ(cond) {
+            return new Promise((resolve, reject) => {
+                const req = db
+                    .transaction("ojinfo", "readonly")
+                    .objectStore("ojinfo")
+                    .getAll(cond);
+                req.onsuccess = (event) => {
+                    resolve(req.result);
+                };
+            });
+        }
+
         function queryAllPNote(cond = null, ndb = null) {
             if (!ndb) ndb = db;
             return new Promise((resolve, reject) => {
@@ -2190,7 +2218,7 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
             const [pid] = window.location.pathname.split("/").slice(-1);
 
             $("section.main>section>div>div").prepend(
-                `   <details id="notepad-detail" open>
+                `<details id="notepad-detail" open>
                 <summary id="notepad-summary">笔记</summary>
                 <div style="height:400px" id="notepad-container">
                     <div id="notepad-editor"></div>
@@ -2323,12 +2351,18 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
 
             const url = new URL(window.location.href);
             if (!url.searchParams.has("notepad")) return;
-            function renderProblem(u) {
+            async function renderProblem(u) {
                 let pcode = "";
                 if (u.code) pcode = `<a href="/record/${u.code}">代码</a>`;
+                let link = `/problem/${u.pid}`;
+                if (u.pid.includes("@")) {
+                    const [pd, id] = u.pid.split("@");
+                    link = `/?notepad&pedit&pid=${u.pid}&title=${u.title}`;
+                    u.pid = id + pd;
+                }
                 return `
             <div style="display:flex;justify-content:flex-start;flex-direction:row;">
-                <p><a href="/problem/${u.pid}">${u.pid} - ${u.title}<font color="red">${u.important ? "*" : ""}</font></a></p>&nbsp;&nbsp;&nbsp;
+                <p><a href="${link}">${u.pid} - ${u.title}<font color="red">${u.important ? "*" : ""}</font></a></p>&nbsp;&nbsp;&nbsp;
                 <details id="notepad-detail-${u.pid}"><summary>笔记</summary>
                     ${render(u.content)}<hr />
                     <div style="display:flex;justify-content:space-between;">
@@ -2383,6 +2417,114 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                     }
                 });
             }
+            else if (url.searchParams.has("pedit")) {
+                const pid = url.searchParams.get("pid");
+                let pt, pd;
+
+                let p = "";
+
+                if (pid) {
+                    [pd] = pid.split("@").slice(0); [pt] = pid.split("@").slice(-1);
+                    const { baseu, id } = await queryOJ(pt);
+                    p += `<a target="_blank" href="${baseu.replace(/%s/, pd)}">${id}${pd} ${url.searchParams.get("title") ?? ""}</a><br /><hr />`;
+                }
+
+
+                p += `
+                <div style="height:400px" id="notepad-container">
+                    <div id="notepad-editor"></div>
+                </div>
+                <br />
+                <div style="display:flex;justify-content:space-between;">
+                    <div>
+                        <label class="nt" id="notepad-tag-label">标签</label>
+                        <input data-v-a7f7c968="" type="text" class="lfe-form-sz-middle" style="width: 60%; display: none;" id="notepad-tag">
+                        <label id="notepad-tag-content"></label>
+                    </div>
+                    <!--div>
+                        <a id="notepad-opencode" href="javascript: void(0)"><svg data-v-29a65e17="" data-v-303bbf52="" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="edit" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" class="svg-inline--fa fa-edit fa-w-18"><path data-v-29a65e17="" data-v-303bbf52="" fill="currentColor" d="M402.6 83.2l90.2 90.2c3.8 3.8 3.8 10 0 13.8L274.4 405.6l-92.8 10.3c-12.4 1.4-22.9-9.1-21.5-21.5l10.3-92.8L388.8 83.2c3.8-3.8 10-3.8 13.8 0zm162-22.9l-48.8-48.8c-15.2-15.2-39.9-15.2-55.2 0l-35.4 35.4c-3.8 3.8-3.8 10 0 13.8l90.2 90.2c3.8 3.8 10 3.8 13.8 0l35.4-35.4c15.2-15.3 15.2-40 0-55.2zM384 346.2V448H64V128h229.8c3.2 0 6.2-1.3 8.5-3.5l40-40c7.6-7.6 2.2-20.5-8.5-20.5H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48V306.2c0-10.7-12.9-16-20.5-8.5l-40 40c-2.2 2.3-3.5 5.3-3.5 8.5z" class=""></path></svg></a>
+                        <span id="notepad-code">代码</span>
+                    </div-->
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <div>
+                        <label class="nt">是否标记为重点:&nbsp;</label>
+                        <input type="checkbox" id="notepad-important" />
+                    </div>
+                </div>
+            <style>.mp-editor-zone-full{width:100%!important;}label.nt{font-weight:normal}</style>`;
+
+                $("#notepad-content").html(p);
+
+                const editor = new MarkdownPalettes("#notepad-editor");
+
+                const req = db.transaction("notes", "readonly").objectStore("notes").get(pid);
+                req.onsuccess = (event) => {
+                    if (req.result) {
+                        editor.content = req.result.content;
+                        $("#notepad-important").prop("checked", req.result.important);
+                        if (req.result.tag) $("#notepad-tag").val(req.result.tag.join(", "));
+                        $("#notepad-tag-content").html(getTagLink(req.result));
+                    }
+                };
+
+                function saveNote() {
+                    const obj_store = db.transaction("notes", "readwrite").objectStore("notes");
+                    let q;
+                    if (editor.content || $("#notepad-tag").val())
+                        q = obj_store.put({
+                            pid,
+                            content: editor.content,
+                            tag: $("#notepad-tag")
+                                .val()
+                                .trim()
+                                .split(",")
+                                .map((u) => u.trim())
+                                .filter((u) => u),
+                            title: url.searchParams.get("title"),
+                            code: null,
+                            important: $("#notepad-important").prop("checked")
+                        });
+                    else q = obj_store.delete(pid);
+                    q.onsuccess = (event) => {
+                        uindow._feInstance.$swalToastSuccess("保存成功");
+                    };
+                }
+
+                $("#notepad-container").keydown(function (event) {
+                    if ((event.ctrlKey || event.metaKey) && event.which === 83) {
+                        saveNote();
+                        event.preventDefault();
+                        return false;
+                    }
+                });
+                $("#notepad-tag").keydown(function (event) {
+                    if (
+                        ((event.ctrlKey || event.metaKey) && event.which === 83) ||
+                    event.keyCode === 13
+                    ) {
+                        saveNote();
+                        $("#notepad-tag").hide();
+                        $("#notepad-tag-content").show();
+                        const u = {
+                            tag: $("#notepad-tag")
+                                .val()
+                                .trim()
+                                .split(",")
+                                .map((u) => u.trim())
+                                .filter((u) => u),
+                        };
+                        $("#notepad-tag-content").html(getTagLink(u));
+                        $("#notepad-tag").val(u.tag.join(", "));
+                        event.preventDefault();
+                        return false;
+                    }
+                });
+                $("#notepad-tag-label").click((event) => {
+                    $("#notepad-tag").show();
+                    $("#notepad-tag-content").hide();
+                });
+            }
             else if (url.searchParams.has("tag")) {
                 const tag = url.searchParams.get("tag").trim();
                 let res = await queryTag(tag);
@@ -2405,9 +2547,35 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                     return u.important ? -1 : 1;
                 });
 
-                for (const u of res) p += renderProblem(u);
+                for (const u of res) p += await renderProblem(u);
 
                 $("#notepad-content").html(p);
+            }
+            else if (url.searchParams.has("ojedit")) {
+                let p = "";
+
+                p += `<div><input placeholder="输入OJ名称@地址" id="notepad-oj-name"/></div><br /><hr />`;
+
+                const o = await queryAllOJ();
+                for (const u of o) p += `<span>${u.id}:${u.baseu}</span><br />`;
+
+                $("#notepad-content").html(p);
+
+                $("#notepad-oj-name").keydown(function (event) {
+                    if (
+                        ((event.ctrlKey || event.metaKey) && event.which === 83) ||
+                    event.keyCode === 13
+                    ) {
+                        const [id, baseu] = $("#notepad-oj-name").val().trim().split("@");
+                        const obs = db.transaction("ojinfo", "readwrite").objectStore("ojinfo");
+                        const q = obs.put({ id, baseu });
+                        q.onsuccess = (event) => {
+                            uindow._feInstance.$swalToastSuccess("保存成功").then(() => uindow.reload());
+                        };
+                        event.preventDefault();
+                        return false;
+                    }
+                });
             }
             else {
                 $("head > title").text("主页 | 洛谷笔记");
@@ -2425,6 +2593,8 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                     }
                 }
                 for (const i in cnt) list.push([i, cnt[i]]);
+
+                p += `<div><input id="notepad-new-otheroj" placeholder="记录一道其他OJ的题目, pid@oj:title" /></div><br /><hr />`;
 
                 const pnotes = await queryAllPNote();
                 for (const u of pnotes) p += renderPnote(u);
@@ -2453,6 +2623,18 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
 
                 d.download = "LuoguNotepad-dump.json";
                 d.href = URL.createObjectURL(new Blob([o]));
+
+                $("#notepad-new-otheroj").keydown(function (event) {
+                    if (
+                        ((event.ctrlKey || event.metaKey) && event.which === 83) ||
+                    event.keyCode === 13
+                    ) {
+                        const [p, t] = $("#notepad-new-otheroj").val().split(":");
+                        window.open(`/?notepad&pedit&pid=${p}&title=${t}`);
+                        event.preventDefault();
+                        return false;
+                    }
+                });
 
                 $("#notepad-import-submit").click((event) => {
                     const files = document.getElementById("notepad-import").files;

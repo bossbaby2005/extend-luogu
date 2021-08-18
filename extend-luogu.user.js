@@ -2352,8 +2352,9 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
             const url = new URL(window.location.href);
             if (!url.searchParams.has("notepad")) return;
             async function renderProblem(u) {
-                let pcode = "";
-                if (u.code) pcode = `<a href="/record/${u.code}">代码</a>`;
+                let pcode = "", codelink = `/record/${u.code}`;
+                if (u.code && u.code.includes("http")) codelink = u.code;
+                if (u.code) pcode = `<a href="${codelink}">代码</a>`;
                 let link = `/problem/${u.pid}`;
                 if (u.pid.includes("@")) {
                     const [pd, id] = u.pid.split("@");
@@ -2437,9 +2438,9 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                 <br />
                 <div style="display:flex;justify-content:space-between;">
                     <div>
-                        <label class="nt" id="notepad-tag-label">标签</label>
+                        <label style="font-weight:normal" id="notepad-tag-label">标签</label>
                         <input data-v-a7f7c968="" type="text" class="lfe-form-sz-middle" style="width: 60%; display: none;" id="notepad-tag">
-                        <label id="notepad-tag-content"></label>
+                        <label id="notepad-tag-content" style="font-weight:normal"> </label>
                     </div>
                     <!--div>
                         <a id="notepad-opencode" href="javascript: void(0)"><svg data-v-29a65e17="" data-v-303bbf52="" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="edit" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" class="svg-inline--fa fa-edit fa-w-18"><path data-v-29a65e17="" data-v-303bbf52="" fill="currentColor" d="M402.6 83.2l90.2 90.2c3.8 3.8 3.8 10 0 13.8L274.4 405.6l-92.8 10.3c-12.4 1.4-22.9-9.1-21.5-21.5l10.3-92.8L388.8 83.2c3.8-3.8 10-3.8 13.8 0zm162-22.9l-48.8-48.8c-15.2-15.2-39.9-15.2-55.2 0l-35.4 35.4c-3.8 3.8-3.8 10 0 13.8l90.2 90.2c3.8 3.8 10 3.8 13.8 0l35.4-35.4c15.2-15.3 15.2-40 0-55.2zM384 346.2V448H64V128h229.8c3.2 0 6.2-1.3 8.5-3.5l40-40c7.6-7.6 2.2-20.5-8.5-20.5H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48V306.2c0-10.7-12.9-16-20.5-8.5l-40 40c-2.2 2.3-3.5 5.3-3.5 8.5z" class=""></path></svg></a>
@@ -2448,11 +2449,12 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                 </div>
                 <div style="display:flex;justify-content:space-between;">
                     <div>
-                        <label class="nt">是否标记为重点:&nbsp;</label>
+                        <label style="font-weight:normal">是否标记为重点:&nbsp;</label>
                         <input type="checkbox" id="notepad-important" />
+                        <input type="text" id="notepad-codes" placeholder="填入代码链接"/>
                     </div>
                 </div>
-            <style>.mp-editor-zone-full{width:100%!important;}label.nt{font-weight:normal}</style>`;
+            <style>.mp-editor-zone-full{width:100%!important;}</style>`;
 
                 $("#notepad-content").html(p);
 
@@ -2482,7 +2484,7 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                                 .map((u) => u.trim())
                                 .filter((u) => u),
                             title: url.searchParams.get("title"),
-                            code: null,
+                            code: $("#notepad-codes").val(),
                             important: $("#notepad-important").prop("checked")
                         });
                     else q = obj_store.delete(pid);

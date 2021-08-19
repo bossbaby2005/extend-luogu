@@ -2020,44 +2020,6 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
     conf.setAlive(() => $("#notepad-main-entry").length);
     const DBName = "Luogu Notepad",
         DBVer = 6;
-    // save config
-    const saveConfig = (config) => {
-        $.ajax({
-            type: "POST",
-            url: `https://www.luogu.com.cn/paste/new`,
-            beforeSend: (request) => {
-                request.setRequestHeader(
-                    "x-csrf-token",
-                    $("meta[name='csrf-token']")[0].content
-                );
-            },
-            contentType: "application/json;charset=UTF-8",
-            data: JSON.stringify({
-                public: false,
-                data: "#lgnote" + JSON.stringify(config),
-            }),
-        });
-    };
-
-    // load config
-    const loadConfig = () => {
-        return new Promise((resolve, reject) => {
-            $.get("https://www.luogu.com.cn/paste?_contentOnly").then((u) => {
-                u = u.currentData.pastes.result;
-                let nc = null;
-                for (const i in u) {
-                    try {
-                        if (u[i].data.substr(0, 7) !== "#lgnote") continue;
-                        const k = u[i].data;
-                        nc = JSON.parse(k.substr(7, k.lentgh));
-                        break;
-                    }
-                    catch (e) { }
-                }
-                resolve(nc);
-            });
-        });
-    };
     conf.plugin(async () => {
         async function openDB(name, ver) {
             function _openDB(name, ver) {
@@ -2194,8 +2156,7 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
             });
         }
 
-        async function importData(o, dbn = null) {
-            if (!dbn) dbn = db;
+        async function importData(o, dbn = db) {
             if (!o) return uindow._feInstance.$swalToastError("导入失败");
             if (o.notes)
                 for (const u of o.notes)
@@ -2203,6 +2164,9 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
             if (o.pnotes)
                 for (const u of o.pnotes)
                     dbn.transaction("pnotes", "readwrite").objectStore("pnotes").put(u);
+            if (o.ojinfo)
+                for (const u of o.pnotes)
+                    dbn.transaction("ojinfo", "readwrite").objectStore("ojinfo").put(u);
             uindow._feInstance
                 .$swalToastSuccess("导入成功")
                 .then(() => location.reload());
@@ -2375,7 +2339,8 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
             `;
             }
             function renderPnote(u) {
-                return `
+                if (u.content)
+                    return `
             <div style="display:flex;justify-content:flex-start;flex-direction:row;">
                 <p><a href="/?notepad&tag=${u.tag}">${u.tag}</a></p>&nbsp;&nbsp;&nbsp;
                 <details><summary>笔记</summary>
@@ -2554,29 +2519,43 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                 $("#notepad-content").html(p);
             }
             else if (url.searchParams.has("ojedit")) {
+                $("head > title").text("其他OJ | 洛谷笔记");
+
                 let p = "";
 
-                p += `<div><input placeholder="输入OJ名称@地址" id="notepad-oj-name"/></div><br /><hr />`;
+                p += `<h3>添加一个其他OJ</h3>`;
+                p += `<div><span>名称&nbsp;</span><input placeholder="OJ名称" id="notepad-oj-name"/><br />
+                <span>地址&nbsp;</span><input placeholder="OJ地址" id="notepad-oj-addr"/></div>`;
+                p += `<br/><a id="notepad-oj-submit"><button type="button" class="lfe-form-sz-middle exlg-btn" style="font-family: &quot;Microsoft YaHei&quot;; border-color: rgb(231, 76, 60); background-color: rgb(231, 76, 60); opacity: 1;">确定</button></a>`;
+                p += `<p>地址请填写OJ的题目地址, 用%s代替具体的题目id</p>`;
 
                 const o = await queryAllOJ();
-                for (const u of o) p += `<span>${u.id}:${u.baseu}</span><br />`;
+                p += `<table><thead><th>OJ名称</th><th>OJ链接</th></thead><tbody>`;
+                for (const u of o) p += `<tr><th>${u.id}</th><th>${u.baseu}</th></tr>`;
+                p += `</tbody></table>`;
+
+                p += `<div><h3>添加一道其他OJ的题目</h3>
+                <div><span>OJ名称&nbsp;</span><input placeholder="OJ名称" id="notepad-ad-oj"/><br />
+                <span>题目ID&nbsp;</span><input placeholder="题目ID" id="notepad-ad-id"/></div>
+                <span>题目名称&nbsp;</span><input placeholder="题目名称" id="notepad-ad-nm"/></div></div>`;
+                p += `<br/><a id="notepad-ad-submit"><button type="button" class="lfe-form-sz-middle exlg-btn" style="font-family: &quot;Microsoft YaHei&quot;; border-color: rgb(231, 76, 60); background-color: rgb(231, 76, 60); opacity: 1;">确定</button></a>`;
 
                 $("#notepad-content").html(p);
 
-                $("#notepad-oj-name").keydown(function (event) {
-                    if (
-                        ((event.ctrlKey || event.metaKey) && event.which === 83) ||
-                    event.keyCode === 13
-                    ) {
-                        const [id, baseu] = $("#notepad-oj-name").val().trim().split("@");
-                        const obs = db.transaction("ojinfo", "readwrite").objectStore("ojinfo");
-                        const q = obs.put({ id, baseu });
-                        q.onsuccess = (event) => {
-                            uindow._feInstance.$swalToastSuccess("保存成功").then(() => uindow.reload());
-                        };
-                        event.preventDefault();
-                        return false;
-                    }
+                $("#notepad-ad-submit").click(function (event) {
+                    const p = `${$("#notepad-ad-id").val().trim()}@${$("#notepad-ad-oj").val().trim()}`;
+                    const t = $("#notepad-ad-nm").val().trim();
+                    window.open(`/?notepad&pedit&pid=${p}&title=${t}`);
+                });
+
+                $("#notepad-oj-submit").click(function (event) {
+                    const id = $("#notepad-oj-name").val().trim();
+                    const baseu = $("#notepad-oj-addr").val().trim();
+                    const obs = db.transaction("ojinfo", "readwrite").objectStore("ojinfo");
+                    const q = obs.put({ id, baseu });
+                    q.onsuccess = (event) => {
+                        uindow._feInstance.$swalToastSuccess("保存成功").then(() => uindow.reload());
+                    };
                 });
             }
             else {
@@ -2596,11 +2575,14 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                 }
                 for (const i in cnt) list.push([i, cnt[i]]);
 
-                p += `<div><input id="notepad-new-otheroj" placeholder="记录一道其他OJ的题目, pid@oj:title" /></div><br /><hr />`;
+                p += `<h2>题目不在洛谷?</h2>`;
+                p += `<a href="/?notepad&ojedit" target="_blank">添加一道其他OJ的题目</a><hr />`;
 
+                p += `<h2>知识点笔记</h2>`;
                 const pnotes = await queryAllPNote();
                 for (const u of pnotes) p += renderPnote(u);
 
+                p += `<h2>统计分析</h2>`;
                 p += `<hr /><div><canvas id="notepad-wordcloud" width="2300px" height="1200px" style="width:100%;height:600px;"></canvas></div><hr />`;
 
                 // for (const u of res) {
@@ -2611,7 +2593,6 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                 p += "<br /><hr /><br />";
 
                 p += `<div style="display:flex;margin-top: 6px;margin-bottom: 6px;"><a href="#" id="notepad-dump"><button type="button" class="lfe-form-sz-middle exlg-btn" style="font-family: Microsoft YaHei;border-color: border-color: rgb(82, 196, 26);background-color: rgb(82, 196, 26)">导出</button></a>&nbsp;<input type="file" id="notepad-import"/><a href="#" id="notepad-import-submit">&nbsp;<button type="button" class="lfe-form-sz-middle exlg-btn" style="font-family: Microsoft YaHei;border-color: rgb(231, 76, 60);background-color: rgb(231, 76, 60)">导入</button></a></div>`;
-                p += `<div style="display:flex;margin-top: 6px;margin-bottom: 6px;"><a href="#" id="notepad-dump-cloud"><button type="button" class="lfe-form-sz-middle exlg-btn" style="font-family: Microsoft YaHei;border-color: rgb(255, 193, 22);background-color: rgb(255, 193, 22)">保存到云剪贴板</button></a>&nbsp;<a href="#" id="notepad-import-cloud"><button type="button" class="lfe-form-sz-middle exlg-btn" style="font-family: Microsoft YaHei;border-color: rgb(52, 152, 219);background-color: rgb(52, 152, 219)">从云剪贴板读取</button></a></div>`;
                 p += `<div style="margin-top: 6px;margin-bottom: 6px;"><a href="https://www.luogu.com.cn/paste/xdrs7184"><button type="button" class="lfe-form-sz-middle exlg-btn" style="font-family: Microsoft YaHei;border-color: rgb(200, 200, 200);background-color: rgb(200, 200, 200)">文档在此</button></a></div>`;
 
                 $("#notepad-content").html(p);
@@ -2621,22 +2602,10 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                     .mouseleave((e) => { $(e.target).css("opacity", "1"); });
 
                 const d = document.getElementById("notepad-dump");
-                const o = JSON.stringify({ notes: res, pnotes: await queryAllPNote() });
+                const o = JSON.stringify({ notes: res, pnotes: await queryAllPNote(), ojinfo: await queryAllOJ() });
 
                 d.download = "LuoguNotepad-dump.json";
                 d.href = URL.createObjectURL(new Blob([o]));
-
-                $("#notepad-new-otheroj").keydown(function (event) {
-                    if (
-                        ((event.ctrlKey || event.metaKey) && event.which === 83) ||
-                    event.keyCode === 13
-                    ) {
-                        const [p, t] = $("#notepad-new-otheroj").val().split(":");
-                        window.open(`/?notepad&pedit&pid=${p}&title=${t}`);
-                        event.preventDefault();
-                        return false;
-                    }
-                });
 
                 $("#notepad-import-submit").click((event) => {
                     const files = document.getElementById("notepad-import").files;
@@ -2651,14 +2620,6 @@ loader.reg("notepad", "洛谷笔记", (conf) => {
                             reader.readAsText(file);
                         }
                     }
-                });
-                $("#notepad-dump-cloud").click(async (event) => {
-                    saveConfig({ notes: res, pnotes: await queryAllPNote() });
-                    uindow._feInstance.$swalToastSuccess("保存成功");
-                });
-                $("#notepad-import-cloud").click(async (event) => {
-                    const o = await loadConfig();
-                    importData(o);
                 });
 
                 WordCloud(document.getElementById("notepad-wordcloud"), {
